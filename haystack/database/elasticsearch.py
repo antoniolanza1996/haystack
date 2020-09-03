@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+import datetime
 from string import Template
 from typing import List, Optional, Union, Dict, Any
 from elasticsearch import Elasticsearch
@@ -273,26 +274,24 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         labels = [Label.from_dict(hit["_source"]) for hit in result]
         return labels
 
-    def get_all_documents_in_index(self, index: str, filters: Optional[Dict[str, List[str]]] = None) -> List[dict]:
+    def get_all_documents_in_index(self, index: str, filters: Optional[dict] = None) -> List[dict]:
         body = {
             "query": {
                 "bool": {
-                    "must": {
-                        "match_all": {}
-                    }
                 }
             }
         }  # type: Dict[str, Any]
-
         if filters:
             filter_clause = []
             for key, values in filters.items():
                 filter_clause.append(
                     {
-                        "terms": {key: values}
+                        "range": {key: values}
                     }
                 )
             body["query"]["bool"]["filter"] = filter_clause
+        else:
+            body["query"]["bool"]["must"] = {"match_all": {}}
         result = scan(self.client, query=body, index=index)
 
         return result
@@ -450,13 +449,40 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
                  }
         return stats
 
-    def update_embeddings(self, retriever: BaseRetriever, index: Optional[str] = None):
+
+
+    def compute_and_store_embeddings(self, retriever, index, docs):
+        logger.info(f"Updating embeddings for {len(docs)} docs ...")
+        embeddings = retriever.embed_passages(docs)
+
+        assert len(docs) == len(embeddings)
+
+        if embeddings[0].shape[0] != self.embedding_dim:
+            raise RuntimeError(f"Embedding dim. of model ({embeddings[0].shape[0]})"
+                            f" doesn't match embedding dim. in documentstore ({self.embedding_dim})."
+                            "Specify the arg `embedding_dim` when initializing ElasticsearchDocumentStore()")
+        doc_updates = []
+        for doc, emb in zip(docs, embeddings):
+            update = {"_op_type": "update",
+                    "_index": index,
+                    "_id": doc.id,
+                    "doc": {self.embedding_field: emb.tolist()},
+                    }
+            doc_updates.append(update)
+
+        bulk(self.client, doc_updates, request_timeout=self.request_timeout,refresh=self.refresh_type)
+
+
+    def update_embeddings(self, retriever: BaseRetriever, index: Optional[str] = None, num_batches=Optional[int], batch_size=Optional[int], first_batch=Optional[int]):
         """
         Updates the embeddings in the the document store using the encoding model specified in the retriever.
         This can be useful if want to add or change the embeddings for your documents (e.g. after changing the retriever config).
 
         :param retriever: Retriever
-        :param index: Index name to update
+        :param index
+        :param num_batches
+        :param batch_size
+        :param first_batch
         :return: None
         """
         if index is None:
@@ -465,26 +491,25 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         if not self.embedding_field:
             raise RuntimeError("Specify the arg `embedding_field` when initializing ElasticsearchDocumentStore()")
 
-        # TODO Index embeddings every X batches to avoid OOM for huge document collections
-        docs = self.get_all_documents(index)
-        logger.info(f"Updating embeddings for {len(docs)} docs ...")
-        embeddings = retriever.embed_passages(docs)  # type: ignore
-        assert len(docs) == len(embeddings)
+        if num_batches: #batch processing
+            if not(first_batch) or first_batch<0:
+                first_batch=0 #start from the beginning
+            for batch_to_execute in range(first_batch,num_batches):
+                logger.info(f"Batch {batch_to_execute}: Start at {datetime.datetime.now().time()}")
 
-        if embeddings[0].shape[0] != self.embedding_dim:
-            raise RuntimeError(f"Embedding dim. of model ({embeddings[0].shape[0]})"
-                               f" doesn't match embedding dim. in documentstore ({self.embedding_dim})."
-                               "Specify the arg `embedding_dim` when initializing ElasticsearchDocumentStore()")
-        doc_updates = []
-        for doc, emb in zip(docs, embeddings):
-            update = {"_op_type": "update",
-                      "_index": index,
-                      "_id": doc.id,
-                      "doc": {self.embedding_field: emb.tolist()},
-                      }
-            doc_updates.append(update)
-
-        bulk(self.client, doc_updates, request_timeout=self.request_timeout)
+                start_ID_doc=batch_to_execute*batch_size
+                end_ID_doc=start_ID_doc+batch_size
+                range_query_dict={
+                    'myIntID': {
+                        "gte": start_ID_doc,
+                        "lt": end_ID_doc
+                    }
+                }
+                batch_docs = self.get_all_documents(index,filters=range_query_dict)
+                self.compute_and_store_embeddings(retriever,index,batch_docs)
+        else: #one single batch for all documents
+            docs = self.get_all_documents(index)
+            self.compute_and_store_embeddings(retriever,index,docs)
 
     def add_eval_data(self, filename: str, doc_index: str = "eval_document", label_index: str = "label"):
         """
