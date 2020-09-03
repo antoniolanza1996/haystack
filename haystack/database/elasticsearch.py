@@ -37,6 +37,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         create_index: bool = True,
         update_existing_documents: bool = False,
         refresh_type: str = "wait_for",
+        request_timeout: int = 10,
     ):
         """
         A DocumentStore using Elasticsearch to store and query the documents for our search.
@@ -72,6 +73,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
                              - 'wait_for' => continue only after changes are visible (slow, but safe)
                              - 'false' => continue directly (fast, but sometimes unintuitive behaviour when docs are not immediately available after indexing)
                              More info at https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-refresh.html
+        :param request_timeout: Elasticsearch client timeout
         """
         self.client = Elasticsearch(hosts=[{"host": host, "port": port}], http_auth=(username, password),
                                     scheme=scheme, ca_certs=ca_certs, verify_certs=verify_certs)
@@ -99,6 +101,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         self.label_index: str = label_index
         self.update_existing_documents = update_existing_documents
         self.refresh_type = refresh_type
+        self.request_timeout = request_timeout
 
     def _create_document_index(self, index_name):
         if self.client.indices.exists(index=index_name):
@@ -220,7 +223,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
                     _doc[k] = v
                 _doc.pop("meta")
             documents_to_index.append(_doc)
-        bulk(self.client, documents_to_index, request_timeout=300, refresh=self.refresh_type)
+        bulk(self.client, documents_to_index, request_timeout=self.request_timeout, refresh=self.refresh_type)
 
     def write_labels(self, labels: Union[List[Label], List[dict]], index: Optional[str] = None):
         index = index or self.label_index
@@ -239,7 +242,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
             }  # type: Dict[str, Any]
 
             labels_to_index.append(_label)
-        bulk(self.client, labels_to_index, request_timeout=300, refresh=self.refresh_type)
+        bulk(self.client, labels_to_index, request_timeout=self.request_timeout, refresh=self.refresh_type)
 
     def update_document_meta(self, id: str, meta: Dict[str, str]):
         body = {"doc": meta}
@@ -411,7 +414,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
                 body["_source"] = {"excludes": self.excluded_meta_data}
 
             logger.debug(f"Retriever query: {body}")
-            result = self.client.search(index=index, body=body, request_timeout=300)["hits"]["hits"]
+            result = self.client.search(index=index, body=body, request_timeout=self.request_timeout)["hits"]["hits"]
 
             documents = [self._convert_es_hit_to_document(hit, score_adjustment=-1) for hit in result]
             return documents
@@ -481,7 +484,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
                       }
             doc_updates.append(update)
 
-        bulk(self.client, doc_updates, request_timeout=300)
+        bulk(self.client, doc_updates, request_timeout=self.request_timeout)
 
     def add_eval_data(self, filename: str, doc_index: str = "eval_document", label_index: str = "label"):
         """
