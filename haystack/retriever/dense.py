@@ -33,7 +33,8 @@ class DensePassageRetriever(BaseRetriever):
                  use_gpu: bool = True,
                  batch_size: int = 16,
                  embed_title: bool = True,
-                 remove_sep_tok_from_untitled_passages: bool = True
+                 remove_sep_tok_from_untitled_passages: bool = True,
+                 model_type: str = "dpr"
                  ):
         """
         Init the Retriever incl. the two encoder models from a local or remote model checkpoint.
@@ -79,12 +80,24 @@ class DensePassageRetriever(BaseRetriever):
         self.embed_title = embed_title
         self.remove_sep_tok_from_untitled_passages = remove_sep_tok_from_untitled_passages
 
+        self.model_type = model_type
         # Init & Load Encoders
-        self.query_tokenizer = DPRQuestionEncoderTokenizer.from_pretrained(query_embedding_model)
-        self.query_encoder = DPRQuestionEncoder.from_pretrained(query_embedding_model).to(self.device)
+        if self.model_type == "dpr":
+            self.query_tokenizer = DPRQuestionEncoderTokenizer.from_pretrained(query_embedding_model)
+            self.query_encoder = DPRQuestionEncoder.from_pretrained(query_embedding_model).to(self.device)
 
-        self.passage_tokenizer = DPRContextEncoderTokenizer.from_pretrained(passage_embedding_model)
-        self.passage_encoder = DPRContextEncoder.from_pretrained(passage_embedding_model).to(self.device)
+            self.passage_tokenizer = DPRContextEncoderTokenizer.from_pretrained(passage_embedding_model)
+            self.passage_encoder = DPRContextEncoder.from_pretrained(passage_embedding_model).to(self.device)
+        elif self.model_type == "orqa" or self.model_type == "realm":
+            self.query_tokenizer = DPRQuestionEncoderTokenizer.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
+            self.query_encoder = DPRQuestionEncoder.from_pretrained(query_embedding_model).to(self.device)
+
+            self.passage_tokenizer = DPRContextEncoderTokenizer.from_pretrained("facebook/dpr-ctx_encoder-single-nq-base")
+            self.passage_encoder = DPRContextEncoder.from_pretrained(passage_embedding_model).to(self.device)
+        else:
+            raise NotImplementedError            
+        
+        logger.info(f"BiEncoder implementation with {self.model_type}")
 
     def retrieve(self, query: str, filters: dict = None, top_k: int = 10, index: str = None) -> List[Document]:
         if index is None:
