@@ -473,7 +473,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         bulk(self.client, doc_updates, request_timeout=self.request_timeout,refresh=self.refresh_type)
 
 
-    def update_embeddings(self, retriever: BaseRetriever, index: Optional[str] = None, num_batches=Optional[int], batch_size=Optional[int], first_batch=Optional[int]):
+    def update_embeddings(self, retriever: BaseRetriever, index: Optional[str] = None, num_batches: Optional[int] = None, batch_size: Optional[int] = None, first_batch: Optional[int] = None):
         """
         Updates the embeddings in the the document store using the encoding model specified in the retriever.
         This can be useful if want to add or change the embeddings for your documents (e.g. after changing the retriever config).
