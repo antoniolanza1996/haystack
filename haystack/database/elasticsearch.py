@@ -392,9 +392,9 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
             raise RuntimeError("Please specify arg `embedding_field` in ElasticsearchDocumentStore()")
         else:
             if self.similarity_function == "cosineSimilarity":
-                source=f"cosineSimilarity(params.query_vector,{self.embedding_field}) + 1.0" # +1 in cosine similarity to avoid negative numbers
+                source=f"cosineSimilarity(params.query_vector,'{self.embedding_field}') + 1.0" # +1 in cosine similarity to avoid negative numbers
             else: #i.e. self.similarity_function == "dotProduct"
-                source=f"dotProduct(params.query_vector,{self.embedding_field})"
+                source=f"dotProduct(params.query_vector,'{self.embedding_field}')"
             body= {
                 "size": top_k,
                 "query": {
