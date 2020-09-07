@@ -39,6 +39,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         update_existing_documents: bool = False,
         refresh_type: str = "wait_for",
         request_timeout: int = 10,
+        similarity_function: str = "cosineSimilarity"
     ):
         """
         A DocumentStore using Elasticsearch to store and query the documents for our search.
@@ -75,6 +76,11 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
                              - 'false' => continue directly (fast, but sometimes unintuitive behaviour when docs are not immediately available after indexing)
                              More info at https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-refresh.html
         :param request_timeout: Elasticsearch client timeout
+        :param similarity_function: Similarity function used to compute score between two vectors.
+                             Values:
+                             - 'cosineSimilarity'
+                             - 'dotProduct'
+                                    
         """
         self.client = Elasticsearch(hosts=[{"host": host, "port": port}], http_auth=(username, password),
                                     scheme=scheme, ca_certs=ca_certs, verify_certs=verify_certs)
@@ -103,7 +109,9 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         self.update_existing_documents = update_existing_documents
         self.refresh_type = refresh_type
         self.request_timeout = request_timeout
-
+        self.similarity_function = similarity_function
+            
+            
     def _create_document_index(self, index_name):
         if self.client.indices.exists(index=index_name):
             return
@@ -383,14 +391,17 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         if not self.embedding_field:
             raise RuntimeError("Please specify arg `embedding_field` in ElasticsearchDocumentStore()")
         else:
-            # +1 in cosine similarity to avoid negative numbers
+            if self.similarity_function == "cosineSimilarity":
+                source=f"cosineSimilarity(params.query_vector,{self.embedding_field}) + 1.0" # +1 in cosine similarity to avoid negative numbers
+            else: #i.e. self.similarity_function == "dotProduct"
+                source=f"dotProduct(params.query_vector,{self.embedding_field})"
             body= {
                 "size": top_k,
                 "query": {
                     "script_score": {
                         "query": {"match_all": {}},
                         "script": {
-                            "source": f"cosineSimilarity(params.query_vector,doc['{self.embedding_field}']) + 1.0",
+                            "source": source,
                             "params": {
                                 "query_vector": query_emb.tolist()
                             }
