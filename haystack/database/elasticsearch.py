@@ -39,7 +39,8 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         update_existing_documents: bool = False,
         refresh_type: str = "wait_for",
         request_timeout: int = 10,
-        similarity_function: str = "cosineSimilarity"
+        similarity_function: str = "cosineSimilarity",
+        maxsize: int = 10,
     ):
         """
         A DocumentStore using Elasticsearch to store and query the documents for our search.
@@ -80,10 +81,12 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
                              Values:
                              - 'cosineSimilarity'
                              - 'dotProduct'
+        :param maxsize: number of connections to each node
+                        More info at https://elasticsearch-py.readthedocs.io/en/master/#thread-safety
                                     
         """
         self.client = Elasticsearch(hosts=[{"host": host, "port": port}], http_auth=(username, password),
-                                    scheme=scheme, ca_certs=ca_certs, verify_certs=verify_certs)
+                                    scheme=scheme, ca_certs=ca_certs, verify_certs=verify_certs, maxsize=maxsize)
 
         # configure mappings to ES fields that will be used for querying / displaying results
         if type(search_fields) == str:
