@@ -113,7 +113,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         self.refresh_type = refresh_type
         self.request_timeout = request_timeout
         self.similarity_function = similarity_function
-            
+        self.offset_for_positive_dot_product=0 #Set from outside if needed (almost useless)
             
     def _create_document_index(self, index_name):
         if self.client.indices.exists(index=index_name):
@@ -397,7 +397,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
             if self.similarity_function == "cosineSimilarity":
                 source=f"cosineSimilarity(params.query_vector,'{self.embedding_field}') + 1.0" # +1 in cosine similarity to avoid negative numbers
             else: #i.e. self.similarity_function == "dotProduct"
-                source=f"dotProduct(params.query_vector,'{self.embedding_field}')"
+                source=f"dotProduct(params.query_vector,'{self.embedding_field}'+{self.offset_for_positive_dot_product})"
             body= {
                 "size": top_k,
                 "query": {
