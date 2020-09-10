@@ -34,7 +34,8 @@ class DensePassageRetriever(BaseRetriever):
                  batch_size: int = 16,
                  embed_title: bool = True,
                  remove_sep_tok_from_untitled_passages: bool = True,
-                 model_type: str = "dpr"
+                 model_type: str = "dpr",
+                 pad_to_max_length: bool = True,
                  ):
         """
         Init the Retriever incl. the two encoder models from a local or remote model checkpoint.
@@ -66,6 +67,7 @@ class DensePassageRetriever(BaseRetriever):
         :param remove_sep_tok_from_untitled_passages: If embed_title is true, there are different strategies to deal with documents that don't have a title.
                                                       True => Embed passage as single text, similar to embed_title = False (i.e [CLS] passage_tok1 ... [SEP])
                                                       False => Embed passage as text pair with empty title (i.e. [CLS] [SEP] passage_tok1 ... [SEP])
+        :param pad_to_max_length: Whether to add padding or not                                               
         """
 
         self.document_store = document_store
@@ -96,6 +98,8 @@ class DensePassageRetriever(BaseRetriever):
             self.passage_encoder = DPRContextEncoder.from_pretrained(passage_embedding_model).to(self.device)
         else:
             raise NotImplementedError            
+        
+        self.pad_to_max_length=pad_to_max_length
         
         logger.info(f"BiEncoder implementation with {self.model_type}")
 
@@ -170,7 +174,7 @@ class DensePassageRetriever(BaseRetriever):
             final_text = text
         out = tokenizer.batch_encode_plus(final_text, add_special_tokens=add_special_tokens, truncation=True,
                                               max_length=self.max_seq_len,
-                                              pad_to_max_length=True)
+                                              pad_to_max_length=self.pad_to_max_length)
 
         token_ids = torch.tensor(out['input_ids']).to(self.device)
         token_type_ids = torch.tensor(out['token_type_ids']).to(self.device)
