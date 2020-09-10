@@ -113,7 +113,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
         self.refresh_type = refresh_type
         self.request_timeout = request_timeout
         self.similarity_function = similarity_function
-        self.offset_for_positive_dot_product=0 #Set from outside if needed (almost useless)
+        self.offset_for_positive_dot_product=0 #Set from outside if needed (almost useless). Other info at https://www.elastic.co/guide/en/elasticsearch/reference/master/query-dsl-script-score-query.html#script-score-top-level-params
             
     def _create_document_index(self, index_name):
         if self.client.indices.exists(index=index_name):
