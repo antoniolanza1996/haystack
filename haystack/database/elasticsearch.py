@@ -397,7 +397,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
             if self.similarity_function == "cosineSimilarity":
                 source=f"cosineSimilarity(params.query_vector,'{self.embedding_field}') + 1.0" # +1 in cosine similarity to avoid negative numbers
             else: #i.e. self.similarity_function == "dotProduct"
-                source=f"dotProduct(params.query_vector,'{self.embedding_field}'+{self.offset_for_positive_dot_product})"
+                source=f"dotProduct(params.query_vector,'{self.embedding_field}')+{self.offset_for_positive_dot_product}"
             body= {
                 "size": top_k,
                 "query": {
