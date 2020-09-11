@@ -14,6 +14,8 @@ from haystack.retriever.sparse import logger
 from haystack.retriever.dpr_utils import DPRContextEncoder, DPRQuestionEncoder, DPRConfig, DPRContextEncoderTokenizer, \
     DPRQuestionEncoderTokenizer
 
+import time
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,13 +103,28 @@ class DensePassageRetriever(BaseRetriever):
         
         self.pad_to_max_length=pad_to_max_length
         
+        self.debug_mode=False #Set it from outside (TMP)
+        
         logger.info(f"BiEncoder implementation with {self.model_type}")
 
     def retrieve(self, query: str, filters: dict = None, top_k: int = 10, index: str = None) -> List[Document]:
         if index is None:
             index = self.document_store.index
+
+        tic = time.time()
         query_emb = self.embed_queries(texts=[query])
+        toc = time.time()
+        
+        if self.debug_mode:
+            print(f"Question embedding time={toc-tic}")
+
+        tic = time.time()
         documents = self.document_store.query_by_embedding(query_emb=query_emb[0], top_k=top_k, filters=filters, index=index)
+        toc= time.time()
+        if self.debug_mode:
+            print(f"ES query time={toc-tic}")
+
+        
         return documents
 
     def embed_queries(self, texts: List[str]) -> List[np.array]:
