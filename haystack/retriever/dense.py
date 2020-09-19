@@ -84,19 +84,19 @@ class DensePassageRetriever(BaseRetriever):
         self.embed_title = embed_title
         self.remove_sep_tok_from_untitled_passages = remove_sep_tok_from_untitled_passages
 
-        self.model_type = model_type
+        self.model_type = model_type.upper()
         # Init & Load Encoders
-        if self.model_type == "dpr":
-            self.query_tokenizer = DPRQuestionEncoderTokenizer.from_pretrained(query_embedding_model)
-            self.query_encoder = DPRQuestionEncoder.from_pretrained(query_embedding_model).to(self.device)
 
-            self.passage_tokenizer = DPRContextEncoderTokenizer.from_pretrained(passage_embedding_model)
-            self.passage_encoder = DPRContextEncoder.from_pretrained(passage_embedding_model).to(self.device)
-        elif self.model_type == "orqa" or self.model_type == "realm":
-            self.query_tokenizer = DPRQuestionEncoderTokenizer.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
-            self.query_encoder = DPRQuestionEncoder.from_pretrained(query_embedding_model).to(self.device)
+        #1. Load Tokenizer
+        #NB: I will use always the same Tokenizer (even though I will switch between checkpoints)
+        self.query_tokenizer = DPRQuestionEncoderTokenizer.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
+        self.passage_tokenizer = DPRContextEncoderTokenizer.from_pretrained("facebook/dpr-ctx_encoder-single-nq-base")
 
-            self.passage_tokenizer = DPRContextEncoderTokenizer.from_pretrained("facebook/dpr-ctx_encoder-single-nq-base")
+        #2. Load Model
+        valid_model_types = ["DPR","ORQA","REALM"]
+
+        if self.model_type in valid_model_types:
+            self.query_encoder = DPRQuestionEncoder.from_pretrained(query_embedding_model).to(self.device)
             self.passage_encoder = DPRContextEncoder.from_pretrained(passage_embedding_model).to(self.device)
         else:
             raise NotImplementedError            
