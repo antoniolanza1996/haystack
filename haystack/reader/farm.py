@@ -46,6 +46,8 @@ class FARMReader(BaseReader):
         num_processes: Optional[int] = None,
         max_seq_len: int = 256,
         doc_stride: int = 128,
+        use_amp: str = None,
+        disable_tqdm: bool = False
     ):
 
         """
@@ -81,7 +83,11 @@ class FARMReader(BaseReader):
         :type num_processes: int
         :param max_seq_len: max sequence length of one input text for the model
         :param doc_stride: length of striding window for splitting long texts (used if len(text) > max_seq_len)
-
+        :param use_amp: Whether to use automatic mixed precision with Apex. One of the optimization levels must be chosen.
+                        "O1" is recommended in almost all cases.
+        :type use_amp: str
+        :param disable_tqdm: Disable tqdm progress bar (helps to reduce verbosity in some environments)
+        :type disable_tqdm: bool
         """
 
         if no_ans_boost is None:
@@ -92,7 +98,7 @@ class FARMReader(BaseReader):
         self.top_k_per_candidate = top_k_per_candidate
         self.inferencer = QAInferencer.load(model_name_or_path, batch_size=batch_size, gpu=use_gpu,
                                           task_type="question_answering", max_seq_len=max_seq_len,
-                                          doc_stride=doc_stride, num_processes=num_processes)
+                                          doc_stride=doc_stride, num_processes=num_processes,disable_tqdm=disable_tqdm)
         self.inferencer.model.prediction_heads[0].context_window_size = context_window_size
         self.inferencer.model.prediction_heads[0].no_ans_boost = no_ans_boost
         self.inferencer.model.prediction_heads[0].n_best = top_k_per_candidate + 1 # including possible no_answer
@@ -102,6 +108,8 @@ class FARMReader(BaseReader):
             logger.warning("Could not set `top_k_per_sample` in FARM. Please update FARM version.")
         self.max_seq_len = max_seq_len
         self.use_gpu = use_gpu
+        self.use_amp = use_amp
+        self.disable_tqdm = disable_tqdm
 
     def train(
         self,
@@ -214,6 +222,8 @@ class FARMReader(BaseReader):
             lr_schedule=lr_schedule,
             evaluate_every=evaluate_every,
             device=device,
+            use_amp=self.use_amp,
+            disable_tqdm=self.disable_tqdm,
         )
 
 
