@@ -46,7 +46,6 @@ class FARMReader(BaseReader):
         num_processes: Optional[int] = None,
         max_seq_len: int = 256,
         doc_stride: int = 128,
-        use_amp: str = None,
         disable_tqdm: bool = False
     ):
 
@@ -122,7 +121,8 @@ class FARMReader(BaseReader):
         dev_split: float = 0,
         evaluate_every: int = 300,
         save_dir: Optional[str] = None,
-        num_processes: Optional[int] = None
+        num_processes: Optional[int] = None,
+        use_amp: str = None,
     ):
         """
         Fine-tune a model on a QA dataset. Options:
