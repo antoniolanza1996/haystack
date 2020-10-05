@@ -171,7 +171,7 @@ class FARMReader(BaseReader):
         if max_seq_len is None:
             max_seq_len = self.max_seq_len
 
-        device, n_gpu = initialize_device_settings(use_cuda=use_gpu)
+        device, n_gpu = initialize_device_settings(use_cuda=use_gpu, use_amp=use_amp)
 
         if not save_dir:
             save_dir = f"../../saved_models/{self.inferencer.model.language_model.name}"
