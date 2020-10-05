@@ -46,7 +46,6 @@ class FARMReader(BaseReader):
         num_processes: Optional[int] = None,
         max_seq_len: int = 256,
         doc_stride: int = 128,
-        use_amp: str = None,
         disable_tqdm: bool = False
     ):
 
@@ -83,9 +82,6 @@ class FARMReader(BaseReader):
         :type num_processes: int
         :param max_seq_len: max sequence length of one input text for the model
         :param doc_stride: length of striding window for splitting long texts (used if len(text) > max_seq_len)
-        :param use_amp: Whether to use automatic mixed precision with Apex. One of the optimization levels must be chosen.
-                        "O1" is recommended in almost all cases.
-        :type use_amp: str
         :param disable_tqdm: Disable tqdm progress bar (helps to reduce verbosity in some environments)
         :type disable_tqdm: bool
         """
@@ -108,7 +104,6 @@ class FARMReader(BaseReader):
             logger.warning("Could not set `top_k_per_sample` in FARM. Please update FARM version.")
         self.max_seq_len = max_seq_len
         self.use_gpu = use_gpu
-        self.use_amp = use_amp
         self.disable_tqdm = disable_tqdm
 
     def train(
@@ -126,7 +121,8 @@ class FARMReader(BaseReader):
         dev_split: float = 0,
         evaluate_every: int = 300,
         save_dir: Optional[str] = None,
-        num_processes: Optional[int] = None
+        num_processes: Optional[int] = None,
+        use_amp: str = None,
     ):
         """
         Fine-tune a model on a QA dataset. Options:
@@ -153,6 +149,9 @@ class FARMReader(BaseReader):
         :param num_processes: The number of processes for `multiprocessing.Pool` during preprocessing.
                               Set to value of 1 to disable multiprocessing. When set to 1 you cannot split away a dev set from train set
                               Set to None to use all CPU cores minus one.
+        :param use_amp: Whether to use automatic mixed precision with Apex. One of the optimization levels must be chosen.
+                        "O1" is recommended in almost all cases.
+        :type use_amp: str
         :return: None
         """
 
@@ -223,7 +222,7 @@ class FARMReader(BaseReader):
             lr_schedule=lr_schedule,
             evaluate_every=evaluate_every,
             device=device,
-            use_amp=self.use_amp,
+            use_amp=use_amp,
             disable_tqdm=self.disable_tqdm,
         )
 
