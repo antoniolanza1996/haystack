@@ -210,7 +210,8 @@ class FARMReader(BaseReader):
             schedule_opts={"name": "LinearWarmup", "warmup_proportion": warmup_proportion},
             n_batches=len(data_silo.loaders["train"]),
             n_epochs=n_epochs,
-            device=device
+            device=device,
+            use_amp=use_amp
         )
         # 4. Feed everything to the Trainer, which keeps care of growing our model and evaluates it from time to time
         trainer = Trainer(
