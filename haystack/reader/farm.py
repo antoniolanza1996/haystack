@@ -46,7 +46,8 @@ class FARMReader(BaseReader):
         num_processes: Optional[int] = None,
         max_seq_len: int = 256,
         doc_stride: int = 128,
-        disable_tqdm: bool = False
+        disable_tqdm: bool = False,
+        remove_duplicate_answers: bool = False
     ):
 
         """
@@ -84,6 +85,9 @@ class FARMReader(BaseReader):
         :param doc_stride: length of striding window for splitting long texts (used if len(text) > max_seq_len)
         :param disable_tqdm: Disable tqdm progress bar (helps to reduce verbosity in some environments)
         :type disable_tqdm: bool
+        :param remove_duplicate_answers: Whether to remove duplicate answers or not (consider only answers texts)
+        :type remove_duplicate_answers: bool
+
         """
 
         if no_ans_boost is None:
@@ -105,6 +109,7 @@ class FARMReader(BaseReader):
         self.max_seq_len = max_seq_len
         self.use_gpu = use_gpu
         self.disable_tqdm = disable_tqdm
+        self.remove_duplicate_answers = remove_duplicate_answers
 
     def train(
         self,
@@ -515,6 +520,20 @@ class FARMReader(BaseReader):
         no_ans_prediction, max_no_ans_gap = self._calc_no_answer(no_ans_gaps, best_score_answer)
         if self.return_no_answers:
             answers.append(no_ans_prediction)
+
+        if self.remove_duplicate_answers:
+            #Consider only unique answer texts (i.e. remove duplicates)
+            unique_answers = {}
+            for answer_dict in answers:
+                answer_text = answer_dict['answer']
+                answer_score = answer_dict['score']
+                if answer_text == None: #i.e. 'no_answer'
+                    pass
+                elif answer_text in unique_answers.keys():
+                    unique_answers[answer_text] += answer_score
+                else:
+                    unique_answers[answer_text] = answer_score
+            answers = [ {'answer':key,'score':unique_answers[key]} for key in unique_answers.keys()]
 
         # sort answers by score and select top-k
         answers = sorted(answers, key=lambda k: k["score"], reverse=True)
