@@ -153,3 +153,14 @@ class TransformersReader(BaseReader):
                       batch_size: Optional[int] = None):
 
         raise NotImplementedError("Batch prediction not yet available in TransformersReader.")
+
+    def predict_on_texts(self, question: str, texts: List[str], top_k: Optional[int] = None):
+        documents = []
+        for text in texts:
+            documents.append(
+                Document(
+                    text=text
+                )
+            )
+        predictions = self.predict(question, documents, top_k)
+        return predictions
