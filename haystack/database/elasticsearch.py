@@ -506,7 +506,7 @@ class ElasticsearchDocumentStore(BaseDocumentStore):
             if not(first_batch) or first_batch<0:
                 first_batch=0 #start from the beginning
             for batch_to_execute in range(first_batch,num_batches):
-                logger.info(f"Batch {batch_to_execute}: Start at {datetime.datetime.now().time()}")
+                logger.info(f"Batch {batch_to_execute}: Start at {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
                 start_ID_doc=batch_to_execute*batch_size
                 end_ID_doc=start_ID_doc+batch_size
